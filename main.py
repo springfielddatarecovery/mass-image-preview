@@ -5,14 +5,15 @@ from PIL import Image
 from multiprocessing import Pool
 import argparse
 from typing import Dict,List,Set,Union,Any
-source_dir='/home/baby/Pictures/'
-dest_dir='/home/baby/thumbtests/'
+source_dir='/home/user/Pictures/'
+dest_dir='/home/user/thumbtests/'
 thumbnail_width=200
 thumbnail_height=200
 contact_sheet_width=400
 contact_sheet_height=600
 padding_between_images=10
 ALLOWED_EXTS=['.jpg','.bmp','.jpeg','.png'] # Extensions we try to thumbnail. Note they must be lowercase.
+TOTAL_RESULTS=[]
 def is_allowed_ext(filename:str):
     for ext in ALLOWED_EXTS:
         if filename.lower().endswith(ext):
@@ -26,20 +27,22 @@ def make_image_list(search_dir:str)->List[str]:
                 abs_path=os.path.join(root,file)
                 return_list.append(abs_path)
     return return_list
-def image_to_thumbnail(abspath:str,width:int,height:int)->Image:
+def image_to_thumbnail(abspath:str,width:int,height:int)->Tuple[Image,bool]:
     try:
         image=Image.open(abspath)
         image=image.resize((width,height))
     except Exception as e:
         print('Error loading image {}: {}'.format(abspath,e))
         image=Image.new('RGB',(width,height))
-    return image
+        return image,False
+    return image,True
 def make_page(page_dest:str,image_list:List[str]):
     page=Image.new('RGB',(contact_sheet_width,contact_sheet_height),'GRAY')
     x_offset=0
     y_offset=0
     for image in image_list:
-        thumbnail=image_to_thumbnail(image,thumbnail_width,thumbnail_height)
+        thumbnail,result=image_to_thumbnail(image,thumbnail_width,thumbnail_height)
+        TOTAL_RESULTS.append(result)
         page.paste(thumbnail,(x_offset,y_offset))
         x_offset+=thumbnail_width
         if x_offset+thumbnail_width>contact_sheet_width:
@@ -77,7 +80,10 @@ if __name__ == '__main__':
         page_images=image_list[start_image:end_image]
         page_dest=os.path.join(dest_dir,'{}.jpg'.format(index))
         make_page(page_dest,page_images)
-
+    successful=sum(bool(x) for x in TOTAL_RESULTS)
+    failed=TOTAL_RESULTS-successful
+    percent=successful/failed
+    print('{} successful thumbnails, {} failed, which is {}%'.format(successful,failed,percent))
 
     # Put thumbnails into contact sheets
 
